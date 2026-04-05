@@ -369,7 +369,9 @@ CEP.memory = (() => {
 
     // Overall distractor accuracy
     const dTrials = dataset.filter(t => t.interference_correct !== -1);
-    const dAcc    = accuracy(dTrials);
+    const dAcc    = dTrials.length
+      ? parseFloat((dTrials.filter(t => t.interference_correct === 1).length / dTrials.length * 100).toFixed(1))
+      : null;
     metrics.push({
       label: 'Distractor Accuracy',
       value: dAcc !== null ? `${dAcc}%` : 'N/A',
@@ -388,18 +390,24 @@ CEP.memory = (() => {
     });
 
     // Addition vs Subtraction accuracy
-    const addAcc = accuracy(dTrials.filter(t => t.interference_operation === 'addition'));
-    const subAcc = accuracy(dTrials.filter(t => t.interference_operation === 'subtraction'));
+    const addTrials = dTrials.filter(t => t.interference_operation === 'addition');
+    const subTrials = dTrials.filter(t => t.interference_operation === 'subtraction');
+    const addAcc = addTrials.length
+      ? parseFloat((addTrials.filter(t => t.interference_correct === 1).length / addTrials.length * 100).toFixed(1))
+      : null;
+    const subAcc = subTrials.length
+      ? parseFloat((subTrials.filter(t => t.interference_correct === 1).length / subTrials.length * 100).toFixed(1))
+      : null;
     if (addAcc !== null) metrics.push({
       label: 'Addition Accuracy',
       value: `${addAcc}%`,
-      unit:  `${dTrials.filter(t=>t.interference_operation==='addition').length} problems`,
+      unit:  `${addTrials.length} problems`,
       type:  addAcc >= 80 ? 'good' : 'warn'
     });
     if (subAcc !== null) metrics.push({
       label: 'Subtraction Accuracy',
       value: `${subAcc}%`,
-      unit:  `${dTrials.filter(t=>t.interference_operation==='subtraction').length} problems`,
+      unit:  `${subTrials.length} problems`,
       type:  subAcc >= 80 ? 'good' : 'warn'
     });
 
@@ -432,8 +440,12 @@ CEP.memory = (() => {
       },
       seriesB: {
         name:   'Distractor',
-        values: CONFIG.sequenceLengths.map(len =>
-          accuracy(dataset.filter(d => d.sequence_length === len && d.interference_correct !== -1)) ?? 0),
+        values: CONFIG.sequenceLengths.map(len => {
+          const t = dataset.filter(d => d.sequence_length === len && d.interference_correct !== -1);
+          return t.length
+            ? parseFloat((t.filter(d => d.interference_correct === 1).length / t.length * 100).toFixed(1))
+            : 0;
+        }),
         color: '#2dd4bf'
       },
       yLabel: 'Accuracy (%)'
