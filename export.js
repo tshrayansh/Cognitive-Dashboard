@@ -46,6 +46,10 @@ CEP.export = (() => {
     // ── Define preferred column ordering (core fields first) ──
     const coreFields = [
       'participant_id',
+      'gender',
+      'age',
+      'major',
+      'sleep_hours',
       'experiment',
       'trial_number',
       'condition',
