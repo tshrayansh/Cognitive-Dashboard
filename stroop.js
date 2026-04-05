@@ -125,7 +125,8 @@ CEP.stroop = (() => {
       word:      document.getElementById('stroop-word'),
       counter:   document.getElementById('trial-counter'),
       expLabel:  document.getElementById('exp-label'),
-      expScreen: document.getElementById('screen-experiment')
+      expScreen: document.getElementById('screen-experiment'),
+      tapBtns:   document.getElementById('stroop-tap-btns')
     };
 
     trials       = generateTrials();
@@ -133,6 +134,16 @@ CEP.stroop = (() => {
 
     dom.expLabel.textContent = 'Stroop Task';
     dom.area.classList.remove('hidden');
+
+    // Wire up tap buttons for mobile
+    dom.tapBtns.querySelectorAll('.stroop-tap-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const color = btn.dataset.color;
+        const keyMap = { red: 'r', blue: 'b', green: 'g' };
+        const rt = Math.round(performance.now() - trialStartMs);
+        recordResponse(keyMap[color], color, rt);
+      });
+    });
   }
 
   // ─────────────────────────────────────────────────────────────
@@ -179,6 +190,9 @@ CEP.stroop = (() => {
     dom.word.textContent       = trial.word;
     dom.word.className         = `stroop-word color-${trial.color}`;
 
+    // Show tap buttons for mobile
+    dom.tapBtns.classList.remove('hidden');
+
     // Record stimulus onset time
     trialStartMs = performance.now();
 
@@ -213,6 +227,9 @@ CEP.stroop = (() => {
     // Remove listener + cancel timeout
     document.removeEventListener('keydown', keyHandler);
     clearTimeout(responseWindow);
+
+    // Hide tap buttons
+    dom.tapBtns.classList.add('hidden');
 
     const trial   = trials[currentIndex];
     const correct = responseColor === trial.color ? 1 : 0;
