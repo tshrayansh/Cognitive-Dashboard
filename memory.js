@@ -369,6 +369,17 @@ CEP.memory = (() => {
 
     // Overall distractor accuracy
     const dTrials = dataset.filter(t => t.interference_correct !== -1);
+
+    // DEBUG
+    console.table(dataset.map(r => ({
+      trial:     r.trial_number,
+      operation: r.interference_operation,
+      ic:        r.interference_correct,
+      ic_type:   typeof r.interference_correct,
+      recall:    r.correct
+    })));
+    console.log('dTrials.length:', dTrials.length);
+
     const dAcc    = dTrials.length
       ? parseFloat((dTrials.filter(t => t.interference_correct === 1).length / dTrials.length * 100).toFixed(1))
       : null;
