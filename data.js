@@ -11,6 +11,7 @@ window.CEP = window.CEP || {};
 CEP.data = (() => {
 
   let dataset = [];
+  let summaryMetrics = [];
 
   let session = {
     participantId: null,
@@ -28,6 +29,7 @@ CEP.data = (() => {
    */
   function initSession(info) {
     dataset = [];
+    summaryMetrics = [];
     session = {
       participantId: info.participantId,
       experiment:    info.experiment,
@@ -73,6 +75,9 @@ CEP.data = (() => {
   function getTrialCount(){ return dataset.length }
   function filterBy(field, value){ return dataset.filter(r => r[field] === value) }
 
+  function setMetrics(metricsArr) { summaryMetrics = metricsArr || []; }
+  function getMetrics()           { return [...summaryMetrics]; }
+
   // ── Math utilities ──
   function mean(arr) {
     if (!arr || arr.length === 0) return null;
@@ -86,6 +91,7 @@ CEP.data = (() => {
   return {
     initSession, logTrial,
     getDataset, getSession, getTrialCount, filterBy,
+    setMetrics, getMetrics,
     utils: { mean, accuracy }
   };
 
