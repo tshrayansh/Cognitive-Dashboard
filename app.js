@@ -223,27 +223,48 @@
     chartArea.style.display = 'block';
     const cd = mod.getChartData();
 
-    Plotly.newPlot(chartArea, [{
-      x: cd.xLabels, y: cd.yValues, type: 'bar',
-      marker: {
-        color: cd.colors,
-        opacity: 0.9,
-        line: { width: 0 }
-      },
-      hovertemplate: `<b>%{x}</b><br>${cd.yLabel}: %{y}<extra></extra>`
-    }], {
+    const sharedLayout = {
       title: { text: cd.title, font: { family: 'DM Sans', size: 13, color: '#cbd5e1' }, xref: 'paper', x: 0.02 },
       paper_bgcolor: 'transparent',
       plot_bgcolor:  'transparent',
-      font:  { family: 'DM Mono', color: '#cbd5e1', size: 11 },
-      xaxis: { tickfont: { color: '#94a3b8', size: 11 }, gridcolor: 'rgba(255,255,255,0.05)', zerolinecolor: 'rgba(255,255,255,0.05)', linecolor: 'rgba(255,255,255,0.05)' },
-      yaxis: { title: { text: cd.yLabel, font: { size: 10, color: '#94a3b8' } }, tickfont: { color: '#94a3b8', size: 11 }, gridcolor: 'rgba(255,255,255,0.05)', zerolinecolor: 'rgba(255,255,255,0.05)', linecolor: 'rgba(255,255,255,0.05)' },
+      font:   { family: 'DM Mono', color: '#cbd5e1', size: 11 },
+      xaxis:  { tickfont: { color: '#94a3b8', size: 11 }, gridcolor: 'rgba(255,255,255,0.05)', zerolinecolor: 'rgba(255,255,255,0.05)', linecolor: 'rgba(255,255,255,0.05)' },
+      yaxis:  { title: { text: cd.yLabel, font: { size: 10, color: '#94a3b8' } }, tickfont: { color: '#94a3b8', size: 11 }, gridcolor: 'rgba(255,255,255,0.05)', zerolinecolor: 'rgba(255,255,255,0.05)', linecolor: 'rgba(255,255,255,0.05)' },
       margin: { l: 52, r: 16, t: 44, b: 52 },
-      bargap: 0.38
-    }, {
+      bargap: 0.28,
+      legend: { font: { color: '#94a3b8', size: 11 }, bgcolor: 'transparent' }
+    };
+    const sharedConfig = {
       responsive: true, displaylogo: false,
       modeBarButtonsToRemove: ['pan2d','select2d','lasso2d','resetScale2d','toggleSpikelines']
-    });
+    };
+
+    let traces;
+    if (cd.type === 'grouped-bar') {
+      traces = [
+        {
+          name: cd.seriesA.name,
+          x: cd.xLabels, y: cd.seriesA.values, type: 'bar',
+          marker: { color: cd.seriesA.color, opacity: 0.9, line: { width: 0 } },
+          hovertemplate: `<b>%{x}</b><br>${cd.seriesA.name}: %{y}%<extra></extra>`
+        },
+        {
+          name: cd.seriesB.name,
+          x: cd.xLabels, y: cd.seriesB.values, type: 'bar',
+          marker: { color: cd.seriesB.color, opacity: 0.9, line: { width: 0 } },
+          hovertemplate: `<b>%{x}</b><br>${cd.seriesB.name}: %{y}%<extra></extra>`
+        }
+      ];
+      sharedLayout.barmode = 'group';
+    } else {
+      traces = [{
+        x: cd.xLabels, y: cd.yValues, type: 'bar',
+        marker: { color: cd.colors, opacity: 0.9, line: { width: 0 } },
+        hovertemplate: `<b>%{x}</b><br>${cd.yLabel}: %{y}<extra></extra>`
+      }];
+    }
+
+    Plotly.newPlot(chartArea, traces, sharedLayout, sharedConfig);
   }
 
   function renderRawTable() {
