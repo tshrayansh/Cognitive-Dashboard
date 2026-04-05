@@ -518,53 +518,114 @@ kbd{
   text-shadow:0 0 30px rgba(99,102,241,0.4);
 }
 
-/* Interference card */
+/* ─── ARITHMETIC INTERFERENCE CARD ──────────────────────────── */
 .interference-card{
-  width:100%;max-width:400px;
+  width:100%;max-width:420px;
   background:var(--surface);
   border:1px solid var(--border-hi);
   border-radius:var(--r-xl);
-  padding:2rem;
+  padding:2rem 2rem 1.75rem;
   display:flex;flex-direction:column;align-items:center;gap:1.25rem;
   box-shadow:var(--shadow);
-  animation:cardIn 0.3s ease both;
+  animation:cardIn 0.3s cubic-bezier(0.16,1,0.3,1) both;
 }
-@keyframes cardIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+@keyframes cardIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+
 .interf-label{
-  font-family:var(--mono);font-size:0.65rem;
-  letter-spacing:0.12em;text-transform:uppercase;
+  font-family:var(--mono);font-size:0.63rem;
+  letter-spacing:0.14em;text-transform:uppercase;
   color:var(--teal);
+  background:var(--teal-dim);
+  border:1px solid rgba(45,212,191,0.2);
+  padding:0.25rem 0.8rem;border-radius:50px;
 }
-.interf-number{
-  font-family:var(--mono);font-size:4.5rem;font-weight:300;
+
+/* The big equation display */
+.interf-equation{
+  font-family:var(--mono);
+  font-size:clamp(2.8rem,8vw,4rem);
+  font-weight:300;
   color:var(--text-hi);
-  text-shadow:0 0 30px rgba(45,212,191,0.4);
+  letter-spacing:0.12em;
   line-height:1;
+  text-shadow:0 0 30px rgba(99,102,241,0.35);
 }
-.interf-question{font-size:0.88rem;color:var(--text-2);text-align:center}
-.interf-btns{display:flex;gap:0.75rem;width:100%}
-.interf-btn{
-  flex:1;font-family:var(--sans);font-size:0.88rem;font-weight:500;
+
+.interf-question{
+  font-size:0.82rem;color:var(--text-2);text-align:center;
+  font-family:var(--mono);
+}
+.interf-question kbd{
+  font-size:0.75rem;
   background:var(--bg-3);
   border:1px solid var(--border-hi);
-  border-radius:var(--r-lg);
-  color:var(--text);
-  padding:0.9rem;cursor:pointer;
+  padding:0.1rem 0.45rem;border-radius:4px;
+  color:var(--indigo);
+}
+
+/* Input row: number field + submit arrow */
+.interf-input-row{
+  display:flex;gap:0.6rem;width:100%;max-width:260px;
+}
+.interf-input{
+  font-family:var(--mono)!important;
+  font-size:1.7rem!important;
+  font-weight:300!important;
+  text-align:center;
+  flex:1;
+  background:var(--bg-2)!important;
+  border:1px solid var(--border-hi)!important;
+  border-radius:var(--r-lg)!important;
+  color:var(--text-hi)!important;
+  padding:0.65rem 0.75rem!important;
+  outline:none;
+  transition:border-color 0.2s,box-shadow 0.2s;
+  /* hide browser number spinners */
+  -moz-appearance:textfield;
+}
+.interf-input::-webkit-inner-spin-button,
+.interf-input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+.interf-input:focus{
+  border-color:var(--indigo)!important;
+  box-shadow:0 0 0 3px var(--indigo-dim)!important;
+}
+.interf-input:disabled{
+  opacity:0.6;cursor:not-allowed;
+}
+.interf-submit-btn{
+  font-size:1.2rem;
+  background:linear-gradient(135deg,var(--indigo),var(--violet));
+  border:none;border-radius:var(--r-lg);
+  color:#fff;width:52px;flex-shrink:0;
+  cursor:pointer;
   transition:all 0.15s;
-  display:flex;align-items:center;justify-content:center;gap:0.6rem;
+  box-shadow:0 4px 12px var(--indigo-glow);
 }
-.interf-btn:hover{
-  background:var(--indigo-dim);
-  border-color:var(--indigo);color:var(--indigo);
+.interf-submit-btn:hover:not(:disabled){
+  filter:brightness(1.1);transform:translateY(-1px);
 }
-.interf-btn.answered{
-  background:var(--indigo-dim);
-  border-color:var(--indigo);color:var(--indigo);
-  opacity:0.6;pointer-events:none;
+.interf-submit-btn:disabled{opacity:0.4;cursor:not-allowed}
+
+/* Inline feedback line */
+.interf-feedback{
+  font-family:var(--mono);font-size:0.8rem;
+  padding:0.4rem 0.9rem;border-radius:var(--r);
+  letter-spacing:0.02em;
 }
-.interf-btn kbd{
-  background:rgba(255,255,255,0.06);
-  font-size:0.72rem;padding:0.1rem 0.4rem;
+.interf-fb-correct{
+  color:var(--green);
+  background:rgba(52,211,153,0.1);
+  border:1px solid rgba(52,211,153,0.2);
+}
+.interf-fb-wrong{
+  color:var(--red);
+  background:rgba(248,113,113,0.1);
+  border:1px solid rgba(248,113,113,0.2);
+}
+.interf-fb-neutral{
+  color:var(--text-2);
+  background:var(--bg-3);
+  border:1px solid var(--border);
 }
 
 /* Recall card */
