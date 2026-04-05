@@ -226,15 +226,16 @@
       <!-- Sequence display -->
       <div id="memory-display" class="memory-display"></div>
 
-      <!-- Interference task -->
+      <!-- Interference task — arithmetic -->
       <div id="interference-task" class="interference-card hidden">
-        <p class="interf-label">Distractor Task — answer to continue</p>
-        <div id="interference-number" class="interf-number"></div>
-        <p class="interf-question">Is this number <strong>Odd</strong> or <strong>Even</strong>?</p>
-        <div class="interf-btns">
-          <button class="interf-btn" data-val="odd"><kbd>O</kbd> Odd</button>
-          <button class="interf-btn" data-val="even"><kbd>E</kbd> Even</button>
+        <p class="interf-label">Distractor Task — solve to continue</p>
+        <div id="interference-equation" class="interf-equation"></div>
+        <p class="interf-question">Type the answer and press <kbd>Enter</kbd></p>
+        <div class="interf-input-row">
+          <input type="number" id="interference-input" class="interf-input" placeholder="?" min="-9" max="18" autocomplete="off" />
+          <button id="btn-interference-submit" class="interf-submit-btn">→</button>
         </div>
+        <p id="interf-feedback" class="interf-feedback hidden"></p>
       </div>
 
       <!-- Recall input -->
