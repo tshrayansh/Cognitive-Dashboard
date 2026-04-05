@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CEP — Cognitive Experiment Platform</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.27.0/plotly.min.js"></script>
+</head>
+<body>
+
+<!-- ░░ ANIMATED BACKGROUND ORBS ░░ -->
+<div class="bg-orb orb-1"></div>
+<div class="bg-orb orb-2"></div>
+<div class="bg-orb orb-3"></div>
+
+<!-- ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
+     SCREEN 1 — START / ONBOARDING
+░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ -->
+<div id="screen-start" class="screen active">
+
+  <header class="site-header">
+    <div class="logo-lockup">
+      <div class="logo-mark">
+        <span class="logo-inner"></span>
+      </div>
+      <div>
+        <div class="logo-name">CEP</div>
+        <div class="logo-tagline">Cognitive Experiment Platform</div>
+      </div>
+    </div>
+    <div class="header-badge">v2.0 · Research Build</div>
+  </header>
+
+  <div class="start-grid">
+
+    <!-- Left column: hero copy -->
+    <div class="hero-col">
+      <h1 class="hero-title">
+        Measure.<br>
+        <em>Understand.</em><br>
+        Export.
+      </h1>
+      <p class="hero-body">
+        A browser-native platform for running controlled cognitive experiments,
+        capturing trial-level behavioral data, and exporting clean datasets —
+        no installation required.
+      </p>
+      <div class="exp-pills">
+        <span class="pill">⚡ Stroop Task</span>
+        <span class="pill">🧮 Working Memory</span>
+        <span class="pill">🌀 False Memory</span>
+      </div>
+    </div>
+
+    <!-- Right column: onboarding form -->
+    <div class="form-card" id="onboarding-card">
+      <div class="form-card-header">
+        <span class="step-dot active" data-step="1"></span>
+        <span class="step-dot" data-step="2"></span>
+        <span class="step-label">Step <span id="step-num">1</span> of 2</span>
+      </div>
+
+      <!-- Step 1: Participant info -->
+      <div id="step-1" class="form-step active">
+        <h3 class="form-title">Participant Info</h3>
+        <p class="form-hint">All data stays local — nothing is transmitted.</p>
+
+        <div class="field-row">
+          <div class="form-field">
+            <label for="participant-id">Participant ID</label>
+            <input type="text" id="participant-id" placeholder="e.g. P001" maxlength="12" autocomplete="off" />
+          </div>
+          <div class="form-field narrow">
+            <label for="p-age">Age</label>
+            <input type="number" id="p-age" placeholder="24" min="10" max="99" />
+          </div>
+        </div>
+
+        <div class="field-row">
+          <div class="form-field">
+            <label>Gender</label>
+            <div class="toggle-group" id="gender-group">
+              <button class="toggle-btn" data-val="M">Male</button>
+              <button class="toggle-btn" data-val="F">Female</button>
+              <button class="toggle-btn" data-val="O">Other</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="field-row">
+          <div class="form-field">
+            <label for="p-major">Major / Field of Study</label>
+            <input type="text" id="p-major" placeholder="e.g. Psychology" maxlength="40" autocomplete="off" />
+          </div>
+          <div class="form-field narrow">
+            <label for="p-sleep">Sleep Last Night (hrs)</label>
+            <input type="number" id="p-sleep" placeholder="7" min="0" max="24" step="0.5" />
+          </div>
+        </div>
+
+        <button class="btn btn-primary full-width" id="btn-step1-next" disabled>
+          Continue →
+        </button>
+      </div>
+
+      <!-- Step 2: Experiment selection -->
+      <div id="step-2" class="form-step hidden">
+        <h3 class="form-title">Choose Experiment</h3>
+        <p class="form-hint">Select the task you want to run.</p>
+
+        <div class="exp-select-list">
+          <div class="exp-select-card" data-exp="stroop">
+            <div class="exp-select-icon">⚡</div>
+            <div class="exp-select-body">
+              <strong>Stroop Task</strong>
+              <span>Attention · Interference · 24 trials</span>
+            </div>
+            <div class="exp-select-check"></div>
+          </div>
+          <div class="exp-select-card" data-exp="memory">
+            <div class="exp-select-icon">🧮</div>
+            <div class="exp-select-body">
+              <strong>Working Memory</strong>
+              <span>Capacity · Load · 15 trials</span>
+            </div>
+            <div class="exp-select-check"></div>
+          </div>
+          <div class="exp-select-card" data-exp="falsememory">
+            <div class="exp-select-icon">🌀</div>
+            <div class="exp-select-body">
+              <strong>False Memory</strong>
+              <span>DRM Paradigm · Recognition</span>
+            </div>
+            <div class="exp-select-check"></div>
+          </div>
+        </div>
+
+        <div class="btn-row">
+          <button class="btn btn-ghost" id="btn-step2-back">← Back</button>
+          <button class="btn btn-primary" id="btn-start" disabled>Begin →</button>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- .start-grid -->
+
+  <footer class="site-footer">
+    <span>All data is stored in-browser only. No network calls are made.</span>
+    <span class="footer-sep">·</span>
+    <span>Exports as analysis-ready CSV.</span>
+  </footer>
+
+</div>
+
+
+<!-- ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
+     SCREEN 2 — INSTRUCTIONS
+░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ -->
+<div id="screen-instructions" class="screen">
+  <div class="instr-shell">
+    <div class="instr-eyebrow">
+      <span class="eyebrow-tag" id="instr-exp-tag"></span>
+      <span class="eyebrow-sep">—</span>
+      <span class="eyebrow-sub">Instructions</span>
+    </div>
+    <h2 id="instr-title" class="instr-title"></h2>
+    <div id="instr-body" class="instr-body"></div>
+    <button id="btn-begin" class="btn btn-primary">
+      <span>I'm ready — Start Task</span>
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+  </div>
+</div>
+
+
+<!-- ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
+     SCREEN 3 — EXPERIMENT
+░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ -->
+<div id="screen-experiment" class="screen">
+
+  <div class="exp-topbar">
+    <div class="exp-topbar-left">
+      <span class="topbar-logo">CEP</span>
+      <span class="topbar-sep">|</span>
+      <span id="exp-label" class="topbar-exp"></span>
+    </div>
+    <div class="exp-topbar-right">
+      <div class="progress-wrap">
+        <div class="progress-track">
+          <div class="progress-fill" id="exp-progress-fill"></div>
+        </div>
+        <span id="trial-counter" class="progress-label"></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="exp-stage">
+
+    <!-- ── STROOP ── -->
+    <div id="stroop-area" class="task-area hidden">
+      <div id="fixation" class="fixation">+</div>
+      <div id="stroop-word" class="stroop-word"></div>
+      <div class="stroop-key-legend">
+        <div class="key-chip" data-color="red"><kbd>R</kbd><span>RED</span></div>
+        <div class="key-chip" data-color="blue"><kbd>B</kbd><span>BLUE</span></div>
+        <div class="key-chip" data-color="green"><kbd>G</kbd><span>GREEN</span></div>
+      </div>
+    </div>
+
+    <!-- ── WORKING MEMORY ── -->
+    <div id="memory-area" class="task-area hidden">
+
+      <!-- Trial announce banner -->
+      <div id="memory-trial-announce" class="trial-announce hidden">
+        <div class="announce-inner">
+          <div class="announce-sub" id="announce-sub-text"></div>
+          <div class="announce-title" id="announce-title-text"></div>
+          <div class="announce-bar"><div class="announce-bar-fill" id="announce-bar-fill"></div></div>
+        </div>
+      </div>
+
+      <!-- Sequence display -->
+      <div id="memory-display" class="memory-display"></div>
+
+      <!-- Interference task -->
+      <div id="interference-task" class="interference-card hidden">
+        <p class="interf-label">Distractor Task — answer to continue</p>
+        <div id="interference-number" class="interf-number"></div>
+        <p class="interf-question">Is this number <strong>Odd</strong> or <strong>Even</strong>?</p>
+        <div class="interf-btns">
+          <button class="interf-btn" data-val="odd"><kbd>O</kbd> Odd</button>
+          <button class="interf-btn" data-val="even"><kbd>E</kbd> Even</button>
+        </div>
+      </div>
+
+      <!-- Recall input -->
+      <div id="memory-input-wrap" class="recall-card hidden">
+        <p class="recall-label">Type the digit sequence you saw:</p>
+        <input type="text" id="memory-input" class="recall-input" maxlength="20" autocomplete="off" placeholder="_ _ _" />
+        <button id="btn-memory-submit" class="btn btn-primary">Submit Answer →</button>
+      </div>
+
+    </div>
+
+    <!-- ── FALSE MEMORY ── -->
+    <div id="false-memory-area" class="task-area hidden">
+      <div id="fm-study-phase" class="fm-phase">
+        <div class="fm-phase-tag">Study Phase</div>
+        <p class="fm-phase-hint">Memorize each word as it appears</p>
+        <div id="fm-word-display" class="fm-word"></div>
+        <div class="fm-prog-track"><div id="fm-progress-fill" class="fm-prog-fill"></div></div>
+      </div>
+      <div id="fm-recognition-phase" class="fm-phase hidden">
+        <div class="fm-phase-tag recog">Recognition Phase</div>
+        <p class="fm-phase-hint">Did you see this word during the study phase?</p>
+        <div id="fm-test-word" class="fm-word recog-word"></div>
+        <div class="fm-response-row">
+          <button class="fm-btn fm-yes" id="btn-fm-yes"><span class="fm-key">Y</span>Yes, I saw it</button>
+          <button class="fm-btn fm-no"  id="btn-fm-no"><span class="fm-key">N</span>No, I didn't</button>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- .exp-stage -->
+</div>
+
+
+<!-- ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
+     SCREEN 4 — RESULTS
+░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ -->
+<div id="screen-results" class="screen">
+
+  <div class="results-topbar">
+    <div class="results-id-block">
+      <div class="results-eyebrow">Session Complete</div>
+      <h2 id="results-title" class="results-title"></h2>
+      <p id="results-pid" class="results-meta"></p>
+    </div>
+    <div class="results-actions-top">
+      <button id="btn-export" class="btn btn-primary">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 2v9M4 8l4 4 4-4M2 13h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Export CSV
+      </button>
+      <button id="btn-restart" class="btn btn-outline">New Session</button>
+    </div>
+  </div>
+
+  <div id="metrics-grid" class="metrics-grid"></div>
+
+  <div id="chart-area" class="chart-area"></div>
+
+  <div class="raw-section">
+    <button class="btn btn-ghost" id="btn-toggle-raw">
+      <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M2 4h12M2 8h8M2 12h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      Show Raw Trial Data
+    </button>
+    <div id="raw-table-wrap" class="raw-table-wrap hidden"></div>
+  </div>
+
+</div>
+
+<script src="data.js"></script>
+<script src="export.js"></script>
+<script src="stroop.js"></script>
+<script src="memory.js"></script>
+<script src="falseMemory.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
