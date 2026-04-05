@@ -1,12 +1,17 @@
 /**
- * memory.js — Working Memory Task Module  (CEP v2)
+ * memory.js — Working Memory Task Module  (CEP v2.1)
  * ═══════════════════════════════════════════════════════════
- * Changes from v1:
- *   · 5 trials per sequence length (was 3) → 15 total
- *   · Trial announce banner shown before each trial
- *     (e.g. "Trial 2 / 5  ·  5-Digit Sequence")
- *   · Interference (odd/even) MUST be answered before
- *     the recall input appears — no auto-timeout bypass
+ * Distractor task: single-digit arithmetic (addition OR
+ * subtraction), participant types the numeric answer.
+ * Must be answered before recall input appears.
+ *
+ * Extra CSV fields per trial:
+ *   interference_problem      — e.g. "7 + 4"
+ *   interference_operation    — "addition" | "subtraction"
+ *   interference_correct_ans  — correct numeric answer
+ *   interference_user_ans     — what the participant typed
+ *   interference_correct      — 1 | 0
+ *   interference_rt_ms        — ms to answer arithmetic
  * ═══════════════════════════════════════════════════════════
  */
 
@@ -14,29 +19,26 @@ window.CEP = window.CEP || {};
 
 CEP.memory = (() => {
 
-  // ── Configuration ─────────────────────────────────────────
+  // ── Configuration ──────────────────────────────────────────
   const CONFIG = {
     sequenceLengths:  [3, 5, 7],
     trialsPerLength:  5,           // 5 × 3 = 15 trials total
     digitDisplayMs:   800,
     digitBlankMs:     200,
-    announceDuration: 2200,        // ms to show the trial banner
+    announceDuration: 2200,
     useInterference:  true,
   };
 
-  // Internal state
-  let trials             = [];
-  let currentIndex       = 0;
-  let onComplete         = null;
-  let dom                = {};
-  let interferenceNumber = null;
-  let interferenceAnswer = null;   // null = not yet answered
+  // ── Internal state ─────────────────────────────────────────
+  let trials              = [];
+  let currentIndex        = 0;
+  let onComplete          = null;
+  let dom                 = {};
+  let currentProblem      = null;
+  let interferenceAnswer  = null;
   let interferenceCorrect = -1;
-  let announceTimer      = null;
-
-  // Track trial-within-length index for per-group labeling
-  // e.g. "Trial 2 / 5" within the 5-digit group
-  let lengthCounters = { 3: 0, 5: 0, 7: 0 };
+  let interferenceRtMs    = -1;
+  let interfStartMs       = 0;
 
   // ─────────────────────────────────────────────────────────────
   // PUBLIC: getInstructions
@@ -48,45 +50,64 @@ CEP.memory = (() => {
       <strong>Memorize the digits in order.</strong></p>
       <ul>
         <li>Each digit flashes briefly — stay focused.</li>
-        <li>After the sequence disappears, you'll face a quick <strong>distractor question</strong>:
-            judge whether a number is <em>Odd</em> or <em>Even</em>.</li>
-        <li>Press <span class="key">O</span> for Odd — <span class="key">E</span> for Even.</li>
-        <li><strong>You must answer the distractor</strong> before the recall input appears.</li>
-        <li>Then type the digit sequence you saw and press Submit.</li>
+        <li>After the sequence, you'll see a quick <strong>arithmetic problem</strong>
+            (single-digit addition or subtraction).</li>
+        <li>Type your answer and press <span class="key">Enter</span> or click <strong>Submit</strong>.</li>
+        <li><strong>You must answer the math problem</strong> before you can recall the sequence.</li>
+        <li>Then type the full digit sequence and press Submit.</li>
       </ul>
-      <div class="warn-block">⚠ Sequences get longer across the three blocks. Do your best at every level.</div>
-      <p>There are <strong>${total} trials</strong> total — ${CONFIG.trialsPerLength} per difficulty level.</p>
+      <div class="warn-block">⚠ Both tasks matter — your arithmetic accuracy is recorded alongside your recall.</div>
+      <p>There are <strong>${total} trials</strong> total — ${CONFIG.trialsPerLength} per level (3 / 5 / 7 digits).</p>
     `;
   }
 
   // ─────────────────────────────────────────────────────────────
-  // generateTrials — 5 trials each for lengths 3, 5, 7
+  // generateTrials
   // ─────────────────────────────────────────────────────────────
   function generateTrials() {
     const list = [];
     function randomSequence(length) {
-      const seq = [];
-      let prev = -1;
+      const seq = []; let prev = -1;
       for (let i = 0; i < length; i++) {
         let d;
         do { d = Math.floor(Math.random() * 10); } while (d === prev);
-        seq.push(d);
-        prev = d;
+        seq.push(d); prev = d;
       }
       return seq;
     }
-    // Groups in order of increasing difficulty
     CONFIG.sequenceLengths.forEach(len => {
       for (let i = 0; i < CONFIG.trialsPerLength; i++) {
         list.push({
           sequenceLength: len,
           sequence:       randomSequence(len),
           condition:      `load-${len}`,
-          trialInGroup:   i + 1   // 1-indexed within this length group
+          trialInGroup:   i + 1
         });
       }
     });
-    return list; // already ordered 3→5→7
+    return list;
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // generateArithmeticProblem
+  // Single-digit operands. Subtraction constrained so result >= 0.
+  // Returns { a, b, op, answer, problemStr }
+  // ─────────────────────────────────────────────────────────────
+  function generateArithmeticProblem() {
+    const op = Math.random() < 0.5 ? 'addition' : 'subtraction';
+    let a, b, answer;
+    if (op === 'addition') {
+      a = Math.floor(Math.random() * 9) + 1;  // 1-9
+      b = Math.floor(Math.random() * 9) + 1;  // 1-9
+      answer = a + b;                          // 2-18
+    } else {
+      a      = Math.floor(Math.random() * 9) + 1; // 1-9
+      b      = Math.floor(Math.random() * a) + 1; // 1..a → result 0..a-1
+      answer = a - b;
+    }
+    const symbol     = op === 'addition' ? '+' : '−';
+    const problemStr = `${a} ${symbol} ${b}`;
+    return { a, b, op, answer, problemStr };
   }
 
   // ─────────────────────────────────────────────────────────────
@@ -96,44 +117,43 @@ CEP.memory = (() => {
     onComplete = completionCallback;
 
     dom = {
-      area:          document.getElementById('memory-area'),
-      display:       document.getElementById('memory-display'),
-      announce:      document.getElementById('memory-trial-announce'),
-      announceSub:   document.getElementById('announce-sub-text'),
-      announceTitle: document.getElementById('announce-title-text'),
-      announceBar:   document.getElementById('announce-bar-fill'),
-      inputWrap:     document.getElementById('memory-input-wrap'),
-      input:         document.getElementById('memory-input'),
-      submitBtn:     document.getElementById('btn-memory-submit'),
-      interf:        document.getElementById('interference-task'),
-      interfNum:     document.getElementById('interference-number'),
-      counter:       document.getElementById('trial-counter'),
-      expLabel:      document.getElementById('exp-label'),
-      progFill:      document.getElementById('exp-progress-fill'),
-      interfBtns:    document.querySelectorAll('.interf-btn'),
+      area:           document.getElementById('memory-area'),
+      display:        document.getElementById('memory-display'),
+      announce:       document.getElementById('memory-trial-announce'),
+      announceSub:    document.getElementById('announce-sub-text'),
+      announceTitle:  document.getElementById('announce-title-text'),
+      announceBar:    document.getElementById('announce-bar-fill'),
+      interf:         document.getElementById('interference-task'),
+      interfEq:       document.getElementById('interference-equation'),
+      interfInput:    document.getElementById('interference-input'),
+      interfSubmit:   document.getElementById('btn-interference-submit'),
+      interfFeedback: document.getElementById('interf-feedback'),
+      inputWrap:      document.getElementById('memory-input-wrap'),
+      input:          document.getElementById('memory-input'),
+      submitBtn:      document.getElementById('btn-memory-submit'),
+      counter:        document.getElementById('trial-counter'),
+      expLabel:       document.getElementById('exp-label'),
+      progFill:       document.getElementById('exp-progress-fill'),
     };
 
-    trials         = generateTrials();
-    currentIndex   = 0;
-    lengthCounters = { 3: 0, 5: 0, 7: 0 };
+    trials       = generateTrials();
+    currentIndex = 0;
 
     dom.expLabel.textContent = 'Working Memory';
     dom.area.classList.remove('hidden');
 
+    dom.interfSubmit.addEventListener('click', handleInterferenceSubmit);
     dom.submitBtn.addEventListener('click', handleRecallSubmit);
-    dom.interfBtns.forEach(btn => {
-      btn.addEventListener('click', () => handleInterferenceResponse(btn.dataset.val));
-    });
     document.addEventListener('keydown', globalKeyHandler);
   }
 
   // ─────────────────────────────────────────────────────────────
-  // globalKeyHandler — O/E during interference, Enter during recall
+  // globalKeyHandler
   // ─────────────────────────────────────────────────────────────
   function globalKeyHandler(e) {
-    if (!dom.interf.classList.contains('hidden') && interferenceAnswer === null) {
-      if (e.key.toLowerCase() === 'o') handleInterferenceResponse('odd');
-      if (e.key.toLowerCase() === 'e') handleInterferenceResponse('even');
+    if (!dom.interf.classList.contains('hidden') &&
+        interferenceAnswer === null && e.key === 'Enter') {
+      handleInterferenceSubmit();
     }
     if (!dom.inputWrap.classList.contains('hidden') && e.key === 'Enter') {
       handleRecallSubmit();
@@ -143,68 +163,63 @@ CEP.memory = (() => {
   // ─────────────────────────────────────────────────────────────
   // PUBLIC: start
   // ─────────────────────────────────────────────────────────────
-  function start() {
-    runTrial();
-  }
+  function start() { runTrial(); }
 
   // ─────────────────────────────────────────────────────────────
-  // runTrial — show announce banner, then begin sequence
+  // runTrial
   // ─────────────────────────────────────────────────────────────
   function runTrial() {
-    if (currentIndex >= trials.length) {
-      endTask();
-      return;
-    }
+    if (currentIndex >= trials.length) { endTask(); return; }
 
     const trial = trials[currentIndex];
     const total = trials.length;
-    const pct   = Math.round((currentIndex / total) * 100);
 
-    // Update progress bar and counter
-    dom.progFill.style.width  = `${pct}%`;
-    dom.counter.textContent   = `Trial ${currentIndex + 1} / ${total}`;
+    dom.progFill.style.width = `${Math.round((currentIndex / total) * 100)}%`;
+    dom.counter.textContent  = `Trial ${currentIndex + 1} / ${total}`;
 
     // Reset all sub-panels
     dom.display.textContent = '';
     dom.inputWrap.classList.add('hidden');
     dom.interf.classList.add('hidden');
-    dom.input.value = '';
+    dom.input.value          = '';
+    dom.interfInput.value    = '';
+    dom.interfInput.disabled  = false;
+    dom.interfSubmit.disabled = false;
+    dom.interfInput.style.borderColor = '';
+    dom.interfFeedback.className = 'interf-feedback hidden';
+    dom.interfFeedback.textContent = '';
     interferenceAnswer  = null;
     interferenceCorrect = -1;
+    interferenceRtMs    = -1;
+    currentProblem      = null;
 
-    // ── Show trial announce banner ──
+    // ── Announce banner ──
     dom.announce.classList.remove('hidden');
     dom.announceSub.textContent   = `${trial.sequenceLength}-Digit Sequence · Trial ${trial.trialInGroup} / ${CONFIG.trialsPerLength}`;
-    dom.announceTitle.textContent = `Get Ready`;
+    dom.announceTitle.textContent = 'Get Ready';
     dom.announceBar.style.width   = '0%';
 
-    // Animate the progress bar across the announce duration
     const startTs = performance.now();
-    const tick = () => {
-      const elapsed = performance.now() - startTs;
-      const pctFill = Math.min((elapsed / CONFIG.announceDuration) * 100, 100);
-      dom.announceBar.style.width = `${pctFill}%`;
-      if (elapsed < CONFIG.announceDuration) {
-        requestAnimationFrame(tick);
-      }
+    const tickBanner = () => {
+      const e = performance.now() - startTs;
+      dom.announceBar.style.width = `${Math.min((e / CONFIG.announceDuration) * 100, 100)}%`;
+      if (e < CONFIG.announceDuration) requestAnimationFrame(tickBanner);
     };
-    requestAnimationFrame(tick);
+    requestAnimationFrame(tickBanner);
 
-    // After banner → start sequence
-    announceTimer = setTimeout(() => {
+    setTimeout(() => {
       dom.announce.classList.add('hidden');
-      dom.display.textContent = '';
       presentSequence(trial.sequence, 0);
     }, CONFIG.announceDuration);
   }
 
   // ─────────────────────────────────────────────────────────────
-  // presentSequence — flash digits one by one
+  // presentSequence
   // ─────────────────────────────────────────────────────────────
   function presentSequence(sequence, index) {
     if (index >= sequence.length) {
       dom.display.textContent = '';
-      startRetentionInterval();
+      startDistractor();
       return;
     }
     dom.display.textContent = sequence[index];
@@ -215,53 +230,57 @@ CEP.memory = (() => {
   }
 
   // ─────────────────────────────────────────────────────────────
-  // startRetentionInterval — show interference if enabled
+  // startDistractor
   // ─────────────────────────────────────────────────────────────
-  function startRetentionInterval() {
-    if (CONFIG.useInterference) {
-      interferenceNumber = Math.floor(Math.random() * 18) + 2; // 2–19
-      interferenceAnswer = null;
-      dom.interfNum.textContent = interferenceNumber;
+  function startDistractor() {
+    if (!CONFIG.useInterference) { showRecallPrompt(); return; }
 
-      // Reset button states
-      dom.interfBtns.forEach(btn => {
-        btn.classList.remove('answered');
-        btn.style.opacity = '1';
-      });
+    currentProblem = generateArithmeticProblem();
+    interfStartMs  = performance.now();
 
-      dom.interf.classList.remove('hidden');
-      // Recall will NOT show until handleInterferenceResponse is called
-    } else {
-      showRecallPrompt();
-    }
+    dom.interfEq.textContent = currentProblem.problemStr;
+    dom.interfInput.value    = '';
+    dom.interfFeedback.className = 'interf-feedback hidden';
+    dom.interf.classList.remove('hidden');
+
+    setTimeout(() => dom.interfInput.focus(), 50);
   }
 
   // ─────────────────────────────────────────────────────────────
-  // handleInterferenceResponse — MUST be answered to proceed
+  // handleInterferenceSubmit
   // ─────────────────────────────────────────────────────────────
-  function handleInterferenceResponse(val) {
-    if (interferenceAnswer !== null) return; // already answered
-    interferenceAnswer = val;
+  function handleInterferenceSubmit() {
+    if (interferenceAnswer !== null) return;
 
-    const isEven = interferenceNumber % 2 === 0;
-    interferenceCorrect = (
-      (isEven && val === 'even') || (!isEven && val === 'odd')
-    ) ? 1 : 0;
+    const raw     = dom.interfInput.value.trim();
+    const userNum = parseInt(raw, 10);
 
-    // Visual feedback on chosen button
-    dom.interfBtns.forEach(btn => {
-      if (btn.dataset.val === val) {
-        btn.classList.add('answered');
-      } else {
-        btn.style.opacity = '0.35';
-      }
-    });
+    if (raw === '' || isNaN(userNum)) {
+      dom.interfFeedback.textContent = 'Please enter a number.';
+      dom.interfFeedback.className   = 'interf-feedback interf-fb-neutral';
+      dom.interfInput.focus();
+      return;
+    }
 
-    // Short pause so user sees their selection, then proceed to recall
+    interferenceRtMs    = Math.round(performance.now() - interfStartMs);
+    interferenceAnswer  = userNum;
+    interferenceCorrect = userNum === currentProblem.answer ? 1 : 0;
+
+    dom.interfInput.disabled  = true;
+    dom.interfSubmit.disabled = true;
+    dom.interfInput.style.borderColor = interferenceCorrect ? '#34d399' : '#f87171';
+
+    dom.interfFeedback.textContent = interferenceCorrect
+      ? `✓  Correct!  (${currentProblem.answer})`
+      : `✗  Answer was ${currentProblem.answer}`;
+    dom.interfFeedback.className = interferenceCorrect
+      ? 'interf-feedback interf-fb-correct'
+      : 'interf-feedback interf-fb-wrong';
+
     setTimeout(() => {
       dom.interf.classList.add('hidden');
       showRecallPrompt();
-    }, 450);
+    }, 900);
   }
 
   // ─────────────────────────────────────────────────────────────
@@ -270,7 +289,7 @@ CEP.memory = (() => {
   function showRecallPrompt() {
     dom.display.textContent = '';
     dom.inputWrap.classList.remove('hidden');
-    dom.input.focus();
+    setTimeout(() => dom.input.focus(), 50);
   }
 
   // ─────────────────────────────────────────────────────────────
@@ -284,24 +303,27 @@ CEP.memory = (() => {
     const correct      = userDigits === presentedStr ? 1 : 0;
 
     CEP.data.logTrial({
-      condition:             trial.condition,
-      stimulus:              trial.sequence.join(' '),
-      response:              userRaw,
+      condition:                trial.condition,
+      stimulus:                 trial.sequence.join(' '),
+      response:                 userRaw,
       correct,
-      rt_ms:                 -1,
-      sequence_length:       trial.sequenceLength,
-      presented_sequence:    presentedStr,
-      trial_in_group:        trial.trialInGroup,
-      interference_response: interferenceAnswer  ?? 'none',
-      interference_correct:  interferenceCorrect
+      rt_ms:                    -1,
+      sequence_length:          trial.sequenceLength,
+      presented_sequence:       presentedStr,
+      trial_in_group:           trial.trialInGroup,
+      interference_problem:     currentProblem ? currentProblem.problemStr : 'N/A',
+      interference_operation:   currentProblem ? currentProblem.op : 'N/A',
+      interference_correct_ans: currentProblem ? currentProblem.answer : -1,
+      interference_user_ans:    interferenceAnswer  ?? -1,
+      interference_correct:     interferenceCorrect,
+      interference_rt_ms:       interferenceRtMs
     });
 
-    // Brief input flash
     dom.input.style.borderColor = correct ? '#34d399' : '#f87171';
     setTimeout(() => { dom.input.style.borderColor = ''; }, 400);
 
     currentIndex++;
-    setTimeout(runTrial, 550);
+    setTimeout(runTrial, 600);
   }
 
   // ─────────────────────────────────────────────────────────────
@@ -318,68 +340,103 @@ CEP.memory = (() => {
   // computeMetrics
   // ─────────────────────────────────────────────────────────────
   function computeMetrics() {
-    const { accuracy } = CEP.data.utils;
+    const { accuracy, mean } = CEP.data.utils;
     const dataset = CEP.data.getDataset();
     const metrics = [];
 
+    // Recall accuracy per load
     CONFIG.sequenceLengths.forEach(len => {
       const t   = dataset.filter(d => d.sequence_length === len);
       const acc = accuracy(t);
       metrics.push({
-        label: `Accuracy — ${len}-Digit`,
+        label: `Recall — ${len}-Digit`,
         value: acc !== null ? `${acc}%` : 'N/A',
         unit:  `${t.length} trials`,
         type:  acc >= 60 ? 'good' : 'warn'
       });
     });
 
-    const load3 = dataset.filter(t => t.sequence_length === 3);
-    const load7 = dataset.filter(t => t.sequence_length === 7);
-    const drop  = parseFloat(((accuracy(load3) ?? 0) - (accuracy(load7) ?? 0)).toFixed(1));
-
+    // Load effect
+    const acc3 = accuracy(dataset.filter(t => t.sequence_length === 3)) ?? 0;
+    const acc7 = accuracy(dataset.filter(t => t.sequence_length === 7)) ?? 0;
+    const drop = parseFloat((acc3 - acc7).toFixed(1));
     metrics.push({
-      label: 'Performance Drop (3→7)',
+      label: 'Load Effect (3→7)',
       value: drop >= 0 ? `−${drop}%` : `+${Math.abs(drop)}%`,
-      unit:  'accuracy decline across load',
+      unit:  'recall drop across load levels',
       type:  drop > 30 ? 'warn' : 'highlight'
     });
 
-    // Interference accuracy
-    const interfTrials = dataset.filter(t => t.interference_correct !== -1);
-    const interfAcc    = accuracy(interfTrials);
+    // Overall distractor accuracy
+    const dTrials = dataset.filter(t => t.interference_correct !== -1);
+    const dAcc    = accuracy(dTrials);
     metrics.push({
       label: 'Distractor Accuracy',
-      value: interfAcc !== null ? `${interfAcc}%` : 'N/A',
-      unit:  'odd/even task',
+      value: dAcc !== null ? `${dAcc}%` : 'N/A',
+      unit:  `${dTrials.length} arithmetic problems`,
+      type:  dAcc >= 75 ? 'good' : 'warn'
+    });
+
+    // Mean distractor RT
+    const dRTs    = dTrials.map(t => t.interference_rt_ms).filter(v => v > 0);
+    const meanDRt = mean(dRTs);
+    metrics.push({
+      label: 'Mean Distractor RT',
+      value: meanDRt ? `${Math.round(meanDRt)}` : 'N/A',
+      unit:  'ms to solve arithmetic',
       type:  'default'
+    });
+
+    // Addition vs Subtraction accuracy
+    const addAcc = accuracy(dTrials.filter(t => t.interference_operation === 'addition'));
+    const subAcc = accuracy(dTrials.filter(t => t.interference_operation === 'subtraction'));
+    if (addAcc !== null) metrics.push({
+      label: 'Addition Accuracy',
+      value: `${addAcc}%`,
+      unit:  `${dTrials.filter(t=>t.interference_operation==='addition').length} problems`,
+      type:  addAcc >= 80 ? 'good' : 'warn'
+    });
+    if (subAcc !== null) metrics.push({
+      label: 'Subtraction Accuracy',
+      value: `${subAcc}%`,
+      unit:  `${dTrials.filter(t=>t.interference_operation==='subtraction').length} problems`,
+      type:  subAcc >= 80 ? 'good' : 'warn'
     });
 
     metrics.push({
       label: 'Total Trials',
       value: dataset.length,
-      unit: 'completed',
-      type: 'default'
+      unit:  'completed',
+      type:  'default'
     });
 
     return metrics;
   }
 
   // ─────────────────────────────────────────────────────────────
-  // PUBLIC: getChartData
+  // PUBLIC: getChartData — grouped bars: recall + distractor
   // ─────────────────────────────────────────────────────────────
   function getChartData() {
     const { accuracy } = CEP.data.utils;
-    const dataset      = CEP.data.getDataset();
+    const dataset = CEP.data.getDataset();
+
     return {
-      type:    'bar',
-      title:   'Recall Accuracy by Sequence Length',
+      type:    'grouped-bar',
+      title:   'Recall vs Distractor Accuracy by Load',
       xLabels: CONFIG.sequenceLengths.map(l => `${l} digits`),
-      yValues: CONFIG.sequenceLengths.map(len => {
-        const t = dataset.filter(d => d.sequence_length === len);
-        return accuracy(t) ?? 0;
-      }),
-      colors:  ['#6366f1', '#f59e0b', '#f87171'],
-      yLabel:  'Accuracy (%)'
+      seriesA: {
+        name:   'Recall',
+        values: CONFIG.sequenceLengths.map(len =>
+          accuracy(dataset.filter(d => d.sequence_length === len)) ?? 0),
+        color: '#6366f1'
+      },
+      seriesB: {
+        name:   'Distractor',
+        values: CONFIG.sequenceLengths.map(len =>
+          accuracy(dataset.filter(d => d.sequence_length === len && d.interference_correct !== -1)) ?? 0),
+        color: '#2dd4bf'
+      },
+      yLabel: 'Accuracy (%)'
     };
   }
 
