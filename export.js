@@ -1,16 +1,14 @@
 /**
- * export.js — Enhanced CSV Export Module (v2.1)
+ * export.js — CSV Export Module
  * ═══════════════════════════════════════════════════════════
- * Converts the CEP dataset into a comprehensive multi-section CSV:
- *   1. Session Summary: participant info + all computed metrics
- *   2. Chart Data: underlying data for visualizations
- *   3. Raw Trial Data: individual trial records
+ * Converts the CEP dataset into a clean, analysis-ready CSV
+ * and triggers an automatic browser download.
  *
  * Output format:
  *   - UTF-8 encoded
  *   - Comma-separated values
  *   - Double-quoted fields (safe for Excel / R / Python pandas)
- *   - Three distinct sections separated by blank rows
+ *   - Header row matches dataset schema
  * ═══════════════════════════════════════════════════════════
  */
 
@@ -28,6 +26,7 @@ CEP.export = (() => {
   function escapeCSV(val) {
     if (val === null || val === undefined) return '""';
     const str = String(val);
+    // Wrap in quotes; escape existing quotes by doubling them
     return `"${str.replace(/"/g, '""')}"`;
   }
 
@@ -44,6 +43,7 @@ CEP.export = (() => {
       return 'No data recorded.';
     }
 
+    // ── Define preferred column ordering (core fields first) ──
     const coreFields = [
       'participant_id',
       'experiment',
@@ -56,12 +56,15 @@ CEP.export = (() => {
       'timestamp'
     ];
 
+    // Collect all extra fields from the dataset (experiment-specific columns)
     const allKeys = new Set();
     dataset.forEach(row => Object.keys(row).forEach(k => allKeys.add(k)));
 
+    // Build final ordered column list: core first, then any extras
     const extraFields = [...allKeys].filter(k => !coreFields.includes(k));
     const columns = [...coreFields, ...extraFields];
 
+    // ── Build CSV string ──
     const headerRow = columns.map(escapeCSV).join(',');
     const dataRows = dataset.map(row =>
       columns.map(col => escapeCSV(row[col])).join(',')
@@ -71,110 +74,28 @@ CEP.export = (() => {
   }
 
   /**
-   * generateSessionSummary
-   * Creates a summary CSV section with session metadata and metrics.
+   * metricsToCSV
+   * Appends a summary statistics block after the trial data rows.
+   * Format: two columns — "metric" and "value" — preceded by a blank
+   * line and a [SUMMARY STATISTICS] header comment.
+   * @param {Object[]} metrics  — array of { label, value, unit } objects
    * @returns {string}
    */
-  function generateSessionSummary() {
-    const session = CEP.data.getSession();
-    const dataset = CEP.data.getDataset();
-    const EXP_MODULES = {
-      stroop: CEP.stroop,
-      memory: CEP.memory,
-      falsememory: CEP.falseMemory
-    };
-
-    let summaryRows = [
-      ['Session Summary'],
-      [],
-      ['Participant ID', session.participantId],
-      ['Experiment', session.experiment],
-      ['Gender', session.gender || 'N/A'],
-      ['Age', session.age || 'N/A'],
-      ['Major', session.major || 'N/A'],
-      ['Sleep Hours', session.sleepHours || 'N/A'],
-      ['Total Trials', dataset.length],
-      ['Session Start', session.startTime || 'N/A'],
-      [],
-      ['Session Metrics']
+  function metricsToCSV(metrics) {
+    if (!metrics || metrics.length === 0) return '';
+    const lines = [
+      '',                                         // blank separator line
+      escapeCSV('[SUMMARY STATISTICS]') + ',,,',  // section header
+      [escapeCSV('metric'), escapeCSV('value'), escapeCSV('unit')].join(',')
     ];
-
-    // Get metrics from experiment module
-    const mod = EXP_MODULES[session.experiment];
-    if (mod && mod.computeMetrics) {
-      try {
-        const metrics = mod.computeMetrics();
-        metrics.forEach(m => {
-          summaryRows.push([m.label, m.value, m.unit || '']);
-        });
-      } catch (e) {
-        console.error('[CEP Export] Error computing metrics:', e);
-      }
-    }
-
-    return summaryRows.map(row => 
-      row.map(escapeCSV).join(',')
-    ).join('\r\n');
-  }
-
-  /**
-   * generateChartDataSection
-   * Creates a CSV section with chart data for visualization.
-   * @returns {string}
-   */
-  function generateChartDataSection() {
-    const session = CEP.data.getSession();
-    const EXP_MODULES = {
-      stroop: CEP.stroop,
-      memory: CEP.memory,
-      falsememory: CEP.falseMemory
-    };
-
-    let chartRows = [
-      ['Chart Data - ' + session.experiment],
-      []
-    ];
-
-    const mod = EXP_MODULES[session.experiment];
-    if (!mod || !mod.getChartData) {
-      return chartRows.map(row => row.map(escapeCSV).join(',')).join('\r\n');
-    }
-
-    try {
-      const chartData = mod.getChartData();
-      chartRows.push(['Chart Title', chartData.title || 'N/A']);
-      chartRows.push(['Chart Type', chartData.type || 'N/A']);
-      chartRows.push([]);
-
-      // Handle different chart types
-      if (chartData.type === 'grouped-bar' && chartData.seriesA && chartData.seriesB) {
-        // Grouped bar chart (Working Memory)
-        chartRows.push(['Category', chartData.seriesA.name, chartData.seriesB.name]);
-        for (let i = 0; i < chartData.xLabels.length; i++) {
-          chartRows.push([
-            chartData.xLabels[i],
-            chartData.seriesA.values[i] || 0,
-            chartData.seriesB.values[i] || 0
-          ]);
-        }
-      } else {
-        // Single bar chart (Stroop, False Memory)
-        chartRows.push(['Category', chartData.yLabel || 'Value']);
-        for (let i = 0; i < chartData.xLabels.length; i++) {
-          chartRows.push([
-            chartData.xLabels[i],
-            chartData.yValues[i] || 0
-          ]);
-        }
-      }
-    } catch (e) {
-      console.error('[CEP Export] Error generating chart data:', e);
-      chartRows.push(['Error generating chart data']);
-    }
-
-    return chartRows.map(row => 
-      row.map(escapeCSV).join(',')
-    ).join('\r\n');
+    metrics.forEach(m => {
+      lines.push([
+        escapeCSV(m.label ?? ''),
+        escapeCSV(String(m.value ?? '')),
+        escapeCSV(m.unit  ?? '')
+      ].join(','));
+    });
+    return lines.join('\r\n');
   }
 
   /**
@@ -185,7 +106,7 @@ CEP.export = (() => {
   function generateFilename() {
     const session = CEP.data.getSession();
     const pid = session.participantId || 'unknown';
-    const exp = session.experiment || 'exp';
+    const exp = session.experiment    || 'exp';
     const now = new Date();
     const pad = n => String(n).padStart(2, '0');
     const stamp = [
@@ -201,11 +122,11 @@ CEP.export = (() => {
   }
 
   /**
-   * downloadEnhancedCSV
-   * Main enhanced export function. Combines session summary, chart data,
-   * and raw trial data into a single comprehensive CSV.
+   * downloadCSV
+   * Main export function. Converts dataset → CSV → browser download.
+   * No server required — uses Blob URL + <a> click trick.
    */
-  function downloadEnhancedCSV() {
+  function downloadCSV() {
     const dataset = CEP.data.getDataset();
 
     if (dataset.length === 0) {
@@ -213,28 +134,14 @@ CEP.export = (() => {
       return;
     }
 
-    // Generate all three sections
-    const summarySection = generateSessionSummary();
-    const chartSection = generateChartDataSection();
-    const trialSection = datasetToCSV(dataset);
+    const csvContent = datasetToCSV(dataset) + metricsToCSV(CEP.data.getMetrics());
+    const filename   = generateFilename();
 
-    // Combine with blank row separators
-    const csvContent = [
-      summarySection,
-      '',
-      '',
-      chartSection,
-      '',
-      '',
-      'Raw Trial Data',
-      '',
-      trialSection
-    ].join('\r\n');
-
-    const filename = generateFilename();
+    // Create Blob and object URL
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
+    const url  = URL.createObjectURL(blob);
 
+    // Trigger download via invisible anchor
     const link = document.createElement('a');
     link.setAttribute('href', url);
     link.setAttribute('download', filename);
@@ -242,22 +149,14 @@ CEP.export = (() => {
     document.body.appendChild(link);
     link.click();
 
+    // Cleanup
     setTimeout(() => {
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
     }, 500);
 
-    console.log(`[CEP] Enhanced export: ${dataset.length} trials → ${filename}`);
+    console.log(`[CEP] Exported ${dataset.length} trials → ${filename}`);
     return filename;
-  }
-
-  /**
-   * downloadCSV (legacy)
-   * Legacy export function for backward compatibility.
-   * Now calls the enhanced export function.
-   */
-  function downloadCSV() {
-    return downloadEnhancedCSV();
   }
 
   /**
@@ -265,15 +164,14 @@ CEP.export = (() => {
    * Returns the raw CSV string (useful for debugging or display).
    */
   function previewCSV() {
-    return datasetToCSV(CEP.data.getDataset());
+    return datasetToCSV(CEP.data.getDataset()) + metricsToCSV(CEP.data.getMetrics());
   }
 
   // Public API
   return {
     downloadCSV,
-    downloadEnhancedCSV,
     previewCSV,
-    datasetToCSV
+    datasetToCSV  // exposed for testing
   };
 
 })();
