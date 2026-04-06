@@ -16,6 +16,9 @@ window.CEP = window.CEP || {};
 
 CEP.export = (() => {
 
+  // ── Google Sheets auto-submit endpoint ────────────────────
+  const SHEETS_ENDPOINT = 'https://script.google.com/macros/s/AKfycbypnaR0q3dOQ26RTBiO5-Cbjoa0pqkAFK-bVvcBSYckBePFQVlrYe8NnV_w8PZrXFRG/exec';
+
   /**
    * escapeCSV
    * Safely escape a value for CSV output.
@@ -171,9 +174,84 @@ CEP.export = (() => {
     return datasetToCSV(CEP.data.getDataset()) + metricsToCSV(CEP.data.getMetrics());
   }
 
+  // ─────────────────────────────────────────────────────────────
+  // submitToSheets
+  // Silently POSTs the full session (trials + metrics + participant
+  // info) to the Google Apps Script endpoint. Non-blocking — the
+  // results screen renders immediately; sync runs in background.
+  //
+  // Payload shape sent to Apps Script:
+  //   { rows: [...trial objects], metrics: [...metric objects], session: {...} }
+  // ─────────────────────────────────────────────────────────────
+  async function submitToSheets() {
+    const dataset = CEP.data.getDataset();
+    const metrics = CEP.data.getMetrics() || [];
+    const session = CEP.data.getSession();
+
+    if (!dataset.length) return;
+
+    showToast('Syncing to Google Sheets…', 'syncing');
+
+    // Build a flat summary row from metrics (for the Summary sheet tab)
+    const summaryRow = { participant_id: session.participantId, experiment: session.experiment,
+      gender: session.gender, age: session.age, major: session.major,
+      sleep_hours: session.sleepHours, session_time: new Date().toISOString(),
+      total_trials: dataset.length };
+    metrics.forEach(m => {
+      // Convert label to a safe key e.g. "Mean RT — Congruent" → "mean_rt_congruent"
+      const key = m.label.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+      summaryRow[key] = String(m.value);
+    });
+
+    const payload = JSON.stringify({ rows: dataset, summary: summaryRow });
+
+    try {
+      // Apps Script requires Content-Type text/plain to avoid CORS preflight rejection
+      const res  = await fetch(SHEETS_ENDPOINT, {
+        method:  'POST',
+        headers: { 'Content-Type': 'text/plain' },
+        body:    payload
+      });
+      const json = await res.json();
+      if (json.status === 'ok') {
+        showToast(`✓ Saved to Google Sheets (${json.written} rows)`, 'ok');
+      } else {
+        showToast('⚠ Sheets sync failed — export CSV manually', 'warn');
+        console.error('[CEP] Sheets error:', json.message);
+      }
+    } catch (err) {
+      showToast('⚠ Offline — use CSV export', 'warn');
+      console.error('[CEP] Fetch error:', err);
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // showToast — small non-blocking corner notification
+  // type: 'syncing' | 'ok' | 'warn'
+  // ─────────────────────────────────────────────────────────────
+  function showToast(msg, type) {
+    const existing = document.getElementById('cep-toast');
+    if (existing) existing.remove();
+
+    const toast = document.createElement('div');
+    toast.id          = 'cep-toast';
+    toast.textContent = msg;
+    toast.className   = `cep-toast cep-toast-${type}`;
+    document.body.appendChild(toast);
+
+    requestAnimationFrame(() => toast.classList.add('cep-toast-show'));
+
+    // Auto-dismiss after 4s
+    setTimeout(() => {
+      toast.classList.remove('cep-toast-show');
+      setTimeout(() => { if (toast.parentNode) toast.remove(); }, 400);
+    }, 4000);
+  }
+
   // Public API
   return {
     downloadCSV,
+    submitToSheets,
     previewCSV,
     datasetToCSV  // exposed for testing
   };
