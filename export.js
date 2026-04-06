@@ -17,7 +17,7 @@ window.CEP = window.CEP || {};
 CEP.export = (() => {
 
   // ── Google Sheets auto-submit endpoint ────────────────────
-  const SHEETS_ENDPOINT = 'https://script.google.com/macros/s/AKfycbypnaR0q3dOQ26RTBiO5-Cbjoa0pqkAFK-bVvcBSYckBePFQVlrYe8NnV_w8PZrXFRG/exec';
+  const SHEETS_ENDPOINT = 'https://script.google.com/macros/s/AKfycbzQbOn9OvYVh8Jl0ySxAGEEXZ-bfGY-28TDn53Qto_oHqs1VgsUQogOr_tM9ad3zokc/exec';
 
   /**
    * escapeCSV
